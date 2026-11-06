@@ -48,6 +48,10 @@ def compare(json_path, ref_dir, limit=None):
     return True, "全部 %d 帧一致" % frames
 
 
+# 包根：本文件在 <pkg>/dev/harness/ 下，往上三级就是包根（独立库与内嵌两种布局都成立）
+PKG_ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+ATLAS_DIR = os.path.join(PKG_ROOT, "atlas")
+
 PAIRS = {
     "impacts/hit-spark": "HitSpark",
     "impacts/crit-hit": "CritHit",
@@ -63,9 +67,14 @@ PAIRS = {
 def main():
     if len(sys.argv) >= 3 and sys.argv[1] == "--all":
         ref_root = sys.argv[2]
+        ids = sorted(PAIRS)
+        if "--only" in sys.argv:
+            wanted = sys.argv[sys.argv.index("--only") + 1]
+            ids = [wanted] if wanted in PAIRS else []
         bad = 0
-        for effect_id, module in sorted(PAIRS.items()):
-            json_path = os.path.join("scripts/tap-pixelfx/atlas", effect_id + ".json")
+        for effect_id in ids:
+            module = PAIRS[effect_id]
+            json_path = os.path.join(ATLAS_DIR, effect_id + ".json")
             ref_dir = os.path.join(ref_root, module)
             ok, msg = compare(json_path, ref_dir)
             print("%-30s %s  %s" % (effect_id, "MATCH" if ok else "DIFF", msg))

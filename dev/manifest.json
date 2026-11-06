@@ -1,0 +1,10 @@
+[
+    { "id": "impacts/hit-spark", "module": "HitSpark" },
+    { "id": "impacts/crit-hit", "module": "CritHit" },
+    { "id": "melee/sword-slash", "module": "SwordSlash" },
+    { "id": "projectiles/arrow", "module": "Arrow" },
+    { "id": "holy/heal", "module": "Heal" },
+    { "id": "spawn/poof", "module": "Poof" },
+    { "id": "explosions/small-explosion", "module": "SmallExplosion" },
+    { "id": "ui/damage-number", "module": "DamageNumber" }
+]

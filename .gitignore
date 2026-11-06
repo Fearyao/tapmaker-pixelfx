@@ -1,6 +1,9 @@
 # .meta 由各工程的 Maker 工具生成，不进共享库（urhox-libs 同约定）
 *.meta
-# 对拍产物
+
+# 验收台产物
 .tmp/
 screenshots/
+.upstream/
+node_modules
 .DS_Store

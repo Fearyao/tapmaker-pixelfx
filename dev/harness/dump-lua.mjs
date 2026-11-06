@@ -1,8 +1,12 @@
-// Lua 侧参考帧导出：用 wasmoon（Lua 5.4 WASM）跑 scripts/tap-pixelfx 下的移植版，
-// 走和引擎里完全相同的帧步进（scripts/tap-pixelfx/dev/FrameDump.lua），逐帧落成裸 RGBA。
+// Lua 侧参考帧导出：用 wasmoon（Lua 5.4 WASM）跑本库的移植版，
+// 走和引擎里完全相同的帧步进（dev/FrameDump.lua），逐帧落成裸 RGBA。
 //
-// 用法：node scripts/tap-pixelfx/dev/harness/dump-lua.mjs <module> <out-dir> [frames] [optsJSON]
-//   module 是 scripts/tap-pixelfx/effects 下的模块名，例如 HitSpark
+// 两种目录布局都支持：
+//   独立库（仓库根就是这个包）        node dev/harness/dump-lua.mjs ...
+//   被工程内嵌（scripts/tap-pixelfx） node scripts/tap-pixelfx/dev/harness/dump-lua.mjs ...
+//
+// 用法：node <harness>/dump-lua.mjs <module> <out-dir> [frames] [optsJSON]
+//   module 是 effects/ 下的模块名，例如 HitSpark
 //   帧数据从 Lua 交回 JS 时走 hex，避免 UTF-8 解码把裸字节吃掉
 
 import { readFile, writeFile, mkdir, rm } from 'node:fs/promises'
@@ -12,25 +16,45 @@ import path from 'node:path'
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 
-// 往上找到项目根（含 scripts/ 与 tools/ 的那一级）
-function findRoot(start) {
+// 往上找到包根（含 init.lua 与 core/Core.lua 的那一级）
+function findPackageRoot(start) {
     let dir = start
     for (let i = 0; i < 8; i++) {
-        if (
-            existsSync(path.join(dir, 'scripts/tap-pixelfx')) &&
-            existsSync(path.join(dir, 'tools/lua-selftest/node_modules/wasmoon'))
-        ) {
+        if (existsSync(path.join(dir, 'init.lua')) && existsSync(path.join(dir, 'core/Core.lua'))) {
             return dir
         }
         const parent = path.dirname(dir)
         if (parent === dir) break
         dir = parent
     }
-    throw new Error('找不到项目根（需要 scripts/tap-pixelfx 和 tools/lua-selftest/node_modules/wasmoon）')
+    throw new Error('找不到 tap-pixelfx 包根（需要 init.lua 与 core/Core.lua）')
 }
 
-const ROOT = findRoot(HERE)
-const WASMOON_ENTRY = path.resolve(ROOT, 'tools/lua-selftest/node_modules/wasmoon/dist/index.js')
+// wasmoon 的入口：环境变量优先，其次往上找 node_modules（独立库或宿主工程都适用）
+function findWasmoon(start) {
+    const fromEnv = process.env.WASMOON_PATH
+    if (fromEnv && existsSync(fromEnv)) return fromEnv
+    let dir = start
+    for (let i = 0; i < 8; i++) {
+        for (const rel of [
+            'node_modules/wasmoon/dist/index.js',
+            'tools/lua-selftest/node_modules/wasmoon/dist/index.js',
+        ]) {
+            const candidate = path.join(dir, rel)
+            if (existsSync(candidate)) return candidate
+        }
+        const parent = path.dirname(dir)
+        if (parent === dir) break
+        dir = parent
+    }
+    throw new Error(
+        '找不到 wasmoon：设置 WASMOON_PATH，或在包根执行 `npm install wasmoon`，\n' +
+            '或在宿主工程里运行（tools/lua-selftest/node_modules/wasmoon）'
+    )
+}
+
+const PKG_ROOT = findPackageRoot(HERE)
+const WASMOON_ENTRY = findWasmoon(HERE)
 
 const name = process.argv[2]
 const outDir = process.argv[3]
@@ -50,7 +74,7 @@ function collectSources(dir, prefix, acc = {}) {
     return acc
 }
 
-const files = collectSources(path.join(ROOT, 'scripts/tap-pixelfx'), 'tap-pixelfx.')
+const files = collectSources(PKG_ROOT, 'tap-pixelfx.')
 const rows = []
 for (const [key, file] of Object.entries(files)) {
     rows.push(`    [${JSON.stringify(key)}] = ${JSON.stringify(await readFile(file, 'utf8'))},`)

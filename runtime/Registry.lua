@@ -86,6 +86,20 @@ Registry.PREWARM = {}
 local registered_ = false
 
 --- 把已移植的特效登记进 Bake（幂等；init.lua 加载时已经调过）
+--- id → 模块名。对拍台和「图集是否过期」的检查靠它把 id 映射回 effects/ 下的文件，
+--- 也是 `dev/manifest.json` 的权威来源（FxRuntimeCheck 会断言三者一致）。
+---@type table<string, string>
+Registry.MODULES = {
+    [Registry.HIT] = "HitSpark",
+    [Registry.CRIT] = "CritHit",
+    [Registry.SLASH] = "SwordSlash",
+    [Registry.ARROW] = "Arrow",
+    [Registry.HEAL] = "Heal",
+    [Registry.DEATH] = "Poof",
+    [Registry.SPLASH] = "SmallExplosion",
+    [Registry.DAMAGE_NUMBER] = "DamageNumber",
+}
+
 function Registry.register()
     if registered_ then
         return

@@ -25,6 +25,23 @@ function Start()
         UI.Init({ theme = "default-dark", scale = UI.Scale.DEFAULT, autoEvents = false })
         Registry.register()
 
+        -- 0) 对拍清单必须和注册表一致：manifest 少一条，CI 就会漏检一个特效
+        local mf = cache:GetFile("tap-pixelfx/dev/manifest.json")
+        assert(mf ~= nil, "读不到 dev/manifest.json")
+        local list = cjson.decode(mf:ReadString())
+        assert(#list == #Registry.ids(),
+            string.format("manifest 有 %d 条、注册表有 %d 个特效", #list, #Registry.ids()))
+        local seen = {}
+        for _, entry in ipairs(list) do
+            assert(Registry.MODULES[entry.id] == entry.module,
+                "manifest 与 Registry.MODULES 不一致: " .. tostring(entry.id))
+            seen[entry.id] = true
+        end
+        for _, id in ipairs(Registry.ids()) do
+            assert(seen[id], "注册表里的特效没进 manifest: " .. id)
+        end
+        print(string.format("[fx-check] manifest %d 条与注册表一致", #list))
+
         -- 1) 描述符
         local sheetCount = 0
         for id, sheet in pairs(Registry.SHEETS) do

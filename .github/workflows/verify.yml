@@ -1,0 +1,46 @@
+name: verify
+
+# 质量闸门：任何提交都必须满足
+#   1. Lua 移植 == pixelfx JS 原版（逐像素，389 帧）
+#   2. 随包图集 == pixelfx JS 原版（切格去护边后逐字节）
+# 两条都过 ⇒ 图集与源码一致，即「源码改了但忘了重烤图集」这种情况会被拦住。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 取 pixelfx 原版（对拍基准）
+        run: git clone --depth 1 https://github.com/patch-gg/pixelfx.git .upstream/pixelfx
+
+      - name: 装 wasmoon（Lua 5.4 WASM，用来跑移植版）
+        run: npm install --no-save --no-package-lock wasmoon@1.16.0
+
+      - name: 装 Pillow（图集比对）
+        run: python3 -m pip install --quiet pillow
+
+      - name: 逐像素对拍 + 图集一致性
+        env:
+          PIXELFX_DIR: ${{ github.workspace }}/.upstream/pixelfx
+          WASMOON_PATH: ${{ github.workspace }}/node_modules/wasmoon/dist/index.js
+        run: node dev/verify.mjs
+
+      - name: 失败时留下帧数据
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diff-frames
+          path: .tmp
+          if-no-files-found: ignore
